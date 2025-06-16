@@ -111,12 +111,11 @@ const REFERENCES_HTML = `
 </ul>
 <h4>Key References</h4>
 <ul>
-    <li><strong>Grantham, R. (1974)</strong> Amino acid difference formula to help explain protein evolution. <em>Science</em> 185(4154):862-864.</li>
-    <li><strong>Williams, M.J. et al. (2022)</strong> Measuring single cell divisions in human tissues from multi-region sequencing data. <em>Science</em> 378:189-192.</li>
-    <li><strong>Alexandrov, L.B. et al. (2020)</strong> The repertoire of mutational signatures in human cancer. <em>Nature</em> 578:94-101.</li>
-    <li><strong>1000 Genomes Project Consortium (2015)</strong> A global reference for human genetic variation. <em>Nature</em> 526:68-74.</li>
-    <li><strong>Mount, S.M. (1982)</strong> A catalogue of splice junction sequences. <em>Nucleic Acids Research</em> 10:459-472.</li>
-</ul>
+    <li><strong>Grantham, R. (1974)</strong> Amino acid difference formula to help explain protein evolution. <em>Science</em></li>
+    <li><strong>Williams, M.J. et al. (2020)</strong> Measuring single cell divisions in human tissues from multi-region sequencing data. <em>Nature Communications</em></li>
+    <li><strong>Alexandrov, L.B. et al. (2020)</strong> The repertoire of mutational signatures in human cancer. <em>Nature</em></li>
+    <li><strong>1000 Genomes Project Consortium (2015)</strong> A global reference for human genetic variation. <em>Nature</em></li>
+\</ul>
 <style>
     .equation {
         background: #f8f9fa;
