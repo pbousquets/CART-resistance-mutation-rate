@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Gene Inactivation Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Force light mode regardless of system preferences */
+        :root {
+            color-scheme: light only;
+        }
+        
+        html, body {
+            color-scheme: light only;
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
+        
+        /* Override any dark mode styles */
+        * {
+            color-scheme: light only;
+        }
+        
+        /* Ensure all text is readable in light mode */
+        body, div, span, p, h1, h2, h3, h4, h5, h6, label, input, textarea, select, button, table, th, td {
+            background-color: inherit !important;
+            color: inherit !important;
+        }
+        
+        /* Force input elements to use light mode */
+        input, textarea, select {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border: 1px solid #ddd !important;
+        }
+        
+        /* Force form controls to be visible */
+        .form-control {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border: 1px solid #ddd !important;
+        }
+        
+        /* Ensure cards and containers are light */
+        .card, .card__body {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Enhanced Gene Inactivation Analyzer</h1>
+            <p class="header-subtitle">Quantitative analysis of mutation-induced gene inactivation with cellular division-based probability calculations</p>
+        </header>
+
+        <main class="main">
+            <!-- Input Section -->
+            <section class="input-section">
+                <div class="card">
+                    <div class="card__body">
+                        <h2>Gene Analysis Input</h2>
+                        
+                        <form id="analysis-form" class="analysis-form">
+                            <div class="form-group">
+                                <label for="gene-name" class="form-label">Gene Name</label>
+                                <input type="text" id="gene-name" class="form-control" placeholder="e.g., CD19, TP53, BRCA1">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="dna-sequence" class="form-label">cDNA Sequence</label>
+                                <textarea id="dna-sequence" class="form-control" rows="6" placeholder="Enter coding DNA sequence (FASTA format or plain text)&#10;Sequence should start with ATG and end with stop codon"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="exon-count" class="form-label">Number of Exons</label>
+                                <input type="number" id="exon-count" class="form-control" min="1" max="150" value="10" placeholder="Enter number of exons for splice site estimation">
+                                <small class="help-text">Used to estimate splice site mutations even with cDNA input</small>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" id="analyze-btn" class="btn btn--primary">
+                                    <span class="btn__text">Analyze Gene</span>
+                                    <span class="btn__spinner" style="display: none;">●</span>
+                                </button>
+                                <button type="button" id="load-cd19" class="btn btn--secondary">Load CD19 Example</button>
+                                <button type="button" id="clear-sequence" class="btn btn--outline">Clear</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Parameters Section -->
+            <section class="parameters-section">
+                <div class="card">
+                    <div class="card__body">
+                        <div class="parameters-header">
+                            <h2>Analysis Parameters</h2>
+                            <button type="button" id="toggle-parameters" class="btn btn--outline btn--sm">
+                                <span class="toggle-text">Hide Parameters</span>
+                                <span class="toggle-icon">▲</span>
+                            </button>
+                        </div>
+                        
+                        <div id="parameters-content" class="parameters-content">
+                            <div class="parameters-grid">
+                                <!-- Core Analysis Parameters -->
+                                <div class="parameter-group">
+                                    <h3>Core Analysis Settings</h3>
+                                    
+                                    <div class="parameter-item">
+                                        <label for="mutation-rate" class="form-label">
+                                            Mutation Rate per Cell Division
+                                        </label>
+                                        <input type="range" id="mutation-rate" min="-11" max="-5" value="-8" step="1">
+                                        <div class="parameter-value">
+                                            <span id="mutation-rate-value">1.0 × 10⁻⁸</span> mutations/bp/division
+                                        </div>
+                                        <small class="parameter-help">Range: 1×10⁻¹¹ to 1×10⁻⁵ per bp/division (Default: 1×10⁻⁸ for somatic tissues)</small>
+                                    </div>
+
+                                    <div class="parameter-item">
+                                        <label for="snv-indel-ratio" class="form-label">
+                                            SNV to Indel Ratio
+                                        </label>
+                                        <input type="range" id="snv-indel-ratio" min="70" max="95" value="90" step="5">
+                                        <div class="parameter-value">
+                                            <span id="snv-ratio-value">90</span>% SNVs, <span id="indel-ratio-value">10</span>% Indels
+                                        </div>
+                                        <small class="parameter-help">Based on Alexandrov, 2020</small>
+                                    </div>
+
+                                    <div class="parameter-item">
+                                        <label for="frameshift-probability" class="form-label">
+                                            Frameshift Probability
+                                        </label>
+                                        <input type="range" id="frameshift-probability" min="50" max="80" value="67" step="1">
+                                        <div class="parameter-value">
+                                            <span id="frameshift-probability-value">0.67</span>
+                                        </div>
+                                        <small class="parameter-help">Mathematical expectation: 2/3 of indels not divisible by 3</small>
+                                    </div>
+                                </div>
+
+                                <!-- Missense Impact Scoring -->
+                                <div class="parameter-group">
+                                    <h3>Missense Impact Thresholds</h3>
+                                    
+                                    <div class="parameter-item">
+                                        <label for="conservative-threshold" class="form-label">
+                                            Conservative Missense Threshold
+                                        </label>
+                                        <input type="range" id="conservative-threshold" min="20" max="100" value="50" step="5">
+                                        <div class="parameter-value">
+                                            <span id="conservative-threshold-value">50</span> score units
+                                        </div>
+                                        <small class="parameter-help">Custom physicochemical distance scoring system</small>
+                                    </div>
+
+                                    <div class="parameter-item">
+                                        <label for="moderate-threshold" class="form-label">
+                                            Moderate Missense Threshold
+                                        </label>
+                                        <input type="range" id="moderate-threshold" min="50" max="150" value="100" step="10">
+                                        <div class="parameter-value">
+                                            <span id="moderate-threshold-value">100</span> score units
+                                        </div>
+                                        <small class="parameter-help">Higher scores indicate more severe amino acid changes</small>
+                                    </div>
+                                </div>
+
+                                <!-- Splice and Indel Parameters -->
+                                <div class="parameter-group">
+                                    <h3>Splice & Indel Settings</h3>
+                                    
+                                    <div class="parameter-item">
+                                        <label for="splice-inactivation-rate" class="form-label">
+                                            Splice Site Inactivation Rate
+                                        </label>
+                                        <input type="range" id="splice-inactivation-rate" min="70" max="95" value="90" step="5">
+                                        <div class="parameter-value">
+                                            <span id="splice-inactivation-rate-value">90</span>%
+                                        </div>
+                                        <small class="parameter-help">Probability that splice site mutations disrupt function</small>
+                                    </div>
+
+                                    <div class="parameter-item">
+                                        <label for="in-frame-indel-damage-rate" class="form-label">
+                                            In-Frame Indel Damage Rate
+                                        </label>
+                                        <input type="range" id="in-frame-indel-damage-rate" min="5" max="50" value="5" step="5">
+                                        <div class="parameter-value">
+                                            <span id="in-frame-indel-damage-rate-value">5</span>%
+                                        </div>
+                                        <small class="parameter-help">Probability that in-frame indels disrupt protein function</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="parameter-actions">
+                                <button type="button" id="reset-parameters" class="btn btn--secondary">Reset to Defaults</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Progress Section -->
+            <section id="progress-container" class="progress-section" style="display: none;">
+                <div class="card">
+                    <div class="card__body">
+                        <h3>Analysis Progress</h3>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+                        <p id="progress-text" class="progress-text">Starting analysis...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="results-section" style="display: none;">
+                <div class="results-header">
+                    <h2>Analysis Results</h2>
+                    <div class="export-actions">
+                        <button id="export-summary" class="btn btn--outline btn--sm">Export Summary</button>
+                        <button id="export-detailed" class="btn btn--outline btn--sm">Export Detailed</button>
+                    </div>
+                </div>
+                <!-- Add estimate method selector -->
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                    <label for="estimate-method" style="font-weight: 500;">Inactivation Estimate Method:</label>
+                    <select id="estimate-method" class="form-control" style="width: auto; min-width: 180px;">
+                        <option value="conservative" selected>Conservative (Recommended)</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="liberal">Comprehensive</option>
+                    </select>
+                </div>
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3>Gene Inactivation Probability</h3>
+                        <div class="summary-value" id="best-summary">--</div>
+                        <p id="estimate-method-label">Probability per random mutation</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Mutation Rate</h3>
+                        <div class="summary-value" id="mutation-rate-summary">--</div>
+                        <p>Mutations per cell division</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Inactivation Risk</h3>
+                        <div class="summary-value" id="inactivation-risk-summary">--</div>
+                        <p>Probability per cell division</p>
+                    </div>
+                </div>
+
+                <!-- Results Tabs -->
+                <div class="tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="overview">Overview</button>
+                        <button class="tab-btn" data-tab="mutation-rates">Mutation Rates</button>
+                        <button class="tab-btn" data-tab="snv">SNV Analysis</button>
+                        <button class="tab-btn" data-tab="splice">Splice Sites</button>
+                        <button class="tab-btn" data-tab="indel">Indel Impact</button>
+                        <button class="tab-btn" data-tab="references">References</button>
+                    </div>
+
+                    <div class="tab-content active" id="overview-tab">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Comprehensive Inactivation Estimates</h3>
+                                <div class="estimates-grid">
+                                    <div class="estimate-item">
+                                        <h4>Conservative Estimate</h4>
+                                        <div class="estimate-value primary" id="conservative-summary">--</div>
+                                        <p>High-confidence inactivating mutations only (Recommended)</p>
+                                    </div>
+                                    <div class="estimate-item">
+                                        <h4>Moderate Estimate</h4>
+                                        <div class="estimate-value" id="best-estimate-detail">--</div>
+                                        <p>Includes moderate impact mutations</p>
+                                    </div>
+                                    <div class="estimate-item">
+                                        <h4>Comprehensive Estimate</h4>
+                                        <div class="estimate-value" id="liberal-summary">--</div>
+                                        <p>Includes all potentially damaging mutations</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="charts-container">
+                                    <div class="chart-wrapper">
+                                        <h4>Overall Mutation Impact Distribution</h4>
+                                        <div class="chart-container">
+                                            <canvas id="overall-chart" height="300"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="chart-wrapper">
+                                        <h4>Mutation Type Contributions</h4>
+                                        <div class="chart-container">
+                                            <canvas id="contribution-chart" height="300"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="mutation-rates-tab">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Mutation Rate Calculations</h3>
+                                <div id="mutation-rate-results"></div>
+                                <div class="chart-wrapper">
+                                    <h4>Cumulative Mutation Probability Over Cell Divisions</h4>
+                                    <div class="chart-container">
+                                        <canvas id="mutation-accumulation-chart" height="300"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="snv-tab">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Single Nucleotide Variant Analysis</h3>
+                                <div class="chart-wrapper">
+                                    <h4>SNV Impact Distribution</h4>
+                                    <div class="chart-container">
+                                        <canvas id="snv-chart" height="300"></canvas>
+                                    </div>
+                                </div>
+                                <div class="table-wrapper">
+                                    <table class="results-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Mutation Type</th>
+                                                <th>Count</th>
+                                                <th>Percentage</th>
+                                                <th>Impact Level</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="snv-table-body">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="splice-tab">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Splice Site Analysis</h3>
+                                <div id="splice-results"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="indel-tab">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Insertion/Deletion Impact</h3>
+                                <div id="indel-results"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="references-tab">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Parameter References & Methodology</h3>
+                                <div id="references-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+<script src="grantham_matrix.js"></script>
+<script src="references.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
